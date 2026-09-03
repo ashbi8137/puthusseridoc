@@ -301,8 +301,6 @@ export default async function HomePage() {
                         <span className="font-semibold text-slate-600 bg-slate-100 px-1.5 py-0.2 rounded">
                           {memberName}
                         </span>
-                        <span>•</span>
-                        <span>{new Date(doc.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</span>
                       </div>
                     </div>
                   </div>
