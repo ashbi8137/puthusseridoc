@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
+import DownloadButton from '@/components/DownloadButton'
 
 export const revalidate = 0
 
@@ -21,11 +22,17 @@ export default async function ViewDocumentPage({ params }: { params: Promise<{ i
 
   const member = doc.family_members
 
-  // Create signed URL
+  // Create signed URL for preview
   const { data: signedUrlData, error: signedUrlError } = await supabase
     .storage
     .from('family-documents')
     .createSignedUrl(doc.file_path, 300)
+
+  // Create signed URL specifically for downloading with attachment header
+  const { data: downloadUrlData } = await supabase
+    .storage
+    .from('family-documents')
+    .createSignedUrl(doc.file_path, 300, { download: doc.file_name })
 
   if (signedUrlError || !signedUrlData) {
     return (
@@ -37,6 +44,7 @@ export default async function ViewDocumentPage({ params }: { params: Promise<{ i
   }
 
   const signedUrl = signedUrlData.signedUrl
+  const downloadUrl = downloadUrlData?.signedUrl || signedUrl
   const isPdf = doc.file_type === 'application/pdf' || doc.file_name.toLowerCase().endsWith('.pdf')
 
   return (
@@ -53,18 +61,10 @@ export default async function ViewDocumentPage({ params }: { params: Promise<{ i
             <span>Back to {member.display_name}</span>
           </Link>
           
-          <a 
-            href={signedUrl} 
-            download={doc.file_name}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 bg-stone-900 hover:bg-stone-800 text-white px-4 py-2.5 rounded-xl text-sm font-medium transition-colors shadow-sm"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-            </svg>
-            <span>Download</span>
-          </a>
+          <DownloadButton
+            downloadUrl={downloadUrl}
+            fileName={doc.file_name}
+          />
         </div>
         
         <div>
