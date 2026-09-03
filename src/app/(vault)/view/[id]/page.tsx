@@ -2,8 +2,9 @@ import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import DownloadButton from '@/components/DownloadButton'
+import BackButton from '@/components/BackButton'
 
-export const revalidate = 0
+export const revalidate = 30
 
 export default async function ViewDocumentPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -46,16 +47,7 @@ export default async function ViewDocumentPage({ params }: { params: Promise<{ i
     <div className="space-y-6">
       <header className="space-y-4">
         <div className="flex items-center justify-between">
-          <Link 
-            href={`/family/${member.slug}`} 
-            prefetch={true}
-            className="inline-flex items-center gap-1.5 text-slate-600 hover:text-slate-900 transition-all text-xs sm:text-sm font-semibold bg-white active:scale-95 active:bg-slate-100 px-3 py-1.5 rounded-full border border-slate-200/70 shadow-2xs"
-          >
-            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-            </svg>
-            <span>Back to {member.display_name}</span>
-          </Link>
+          <BackButton fallbackHref={`/family/${member.slug}`} label={`Back to ${member.display_name}`} />
           
           <DownloadButton
             downloadUrl={downloadUrl}

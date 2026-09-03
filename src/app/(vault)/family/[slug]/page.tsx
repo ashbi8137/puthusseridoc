@@ -5,8 +5,9 @@ import Link from 'next/link'
 import MemberPageClient from '@/components/MemberPageClient'
 import DocumentItem from '@/components/DocumentItem'
 import AvatarUploader from '@/components/AvatarUploader'
+import BackButton from '@/components/BackButton'
 
-export const revalidate = 0
+export const revalidate = 30
 
 const MEMBER_THEMES: Record<string, {
   headerBg: string
@@ -110,16 +111,7 @@ export default async function FamilyMemberPage({ params }: { params: Promise<{ s
       {/* Top Header Card */}
       <div className={`${theme.headerBg} rounded-3xl p-5 border border-slate-200/70 shadow-xs space-y-4`}>
         <div className="flex items-center justify-between">
-          <Link 
-            href="/home" 
-            prefetch={true}
-            className="inline-flex items-center gap-1.5 text-slate-600 hover:text-slate-900 transition-all text-xs font-semibold bg-white/90 active:scale-95 active:bg-slate-100 px-3 py-1.5 rounded-full border border-slate-200/70 shadow-2xs"
-          >
-            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-            </svg>
-            <span>Back to Home</span>
-          </Link>
+          <BackButton fallbackHref="/home" label="Back to Home" />
           <span className="text-xs font-medium text-slate-400">
             {docs.length} total document{docs.length === 1 ? '' : 's'}
           </span>

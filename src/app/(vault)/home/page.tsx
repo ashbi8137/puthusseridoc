@@ -4,7 +4,7 @@ import Link from 'next/link'
 import SearchSection from '@/components/SearchSection'
 import MemberGrid from '@/components/MemberGrid'
 
-export const revalidate = 0
+export const revalidate = 30
 
 function getGreeting() {
   const options = { timeZone: 'Asia/Kolkata', hour: 'numeric', hour12: false } as const
