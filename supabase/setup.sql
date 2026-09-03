@@ -113,7 +113,7 @@ DELETE FROM public.family_members WHERE slug IN ('dad', 'mom', 'brother');
 INSERT INTO public.family_members (name, display_name, email, slug) VALUES
   ('Ashbin', 'Ashbin', 'ashputhusseri@gmail.com', 'ashbin'),
   ('Abdurahiman', 'Abdurahiman', 'parahiman1968@gmail.com', 'abdurahiman'),
-  ('Shareena', 'Shareena', NULL, 'shareena'),
+  ('Shareena', 'Shareena', 'shareena432@gmail.com', 'shareena'),
   ('Shamil', 'Shamil', 'shamilputhusheri@gmail.com', 'shamil')
 ON CONFLICT (slug) DO UPDATE 
 SET 
