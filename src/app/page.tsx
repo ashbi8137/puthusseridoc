@@ -27,7 +27,7 @@ function LoginContent() {
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
             </svg>
           </div>
-          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Puthusseri Vault</h1>
+          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Puthusseri Documents</h1>
           <p className="text-slate-500 text-xs sm:text-sm leading-relaxed">
             Our family&apos;s important documents, always within reach.
           </p>
@@ -35,7 +35,7 @@ function LoginContent() {
 
         {error === 'unauthorized' && (
           <div className="bg-rose-50 border border-rose-200 text-rose-700 p-3.5 rounded-xl text-xs font-medium text-left">
-            Access Denied — This account is not authorized to access Puthusseri Vault.
+            Access Denied — This account is not authorized to access Puthusseri Documents.
           </div>
         )}
 

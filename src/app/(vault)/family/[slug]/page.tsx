@@ -138,7 +138,7 @@ export default async function FamilyMemberPage({ params }: { params: Promise<{ s
             <h1 className="text-2xl font-bold tracking-tight text-slate-900">
               {member.display_name}
             </h1>
-            <p className="text-xs text-slate-500 mt-0.5 font-medium">Personal Document Vault</p>
+            <p className="text-xs text-slate-500 mt-0.5 font-medium">Personal Documents</p>
           </div>
         </div>
 

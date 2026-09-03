@@ -49,5 +49,5 @@ export const SIGNED_URL_EXPIRY = 300
 export const STORAGE_BUCKET = 'family-documents'
 
 // App metadata
-export const APP_NAME = 'Puthusseri Vault'
+export const APP_NAME = 'Puthusseri Documents'
 export const APP_TAGLINE = "Our family's important documents, always within reach."

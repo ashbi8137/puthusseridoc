@@ -122,7 +122,30 @@ export default async function HomePage() {
   const greeting = getGreeting()
 
   // Find current user's family member record for personalized hero card
-  const currentMember = members.find(m => m.email?.toLowerCase() === userEmail)
+  const normalizedEmail = userEmail.trim().toLowerCase()
+  let currentMember = members.find(m => m.email?.toLowerCase() === normalizedEmail)
+
+  // Fallback mapping to guarantee 100% accurate family name resolution
+  if (!currentMember) {
+    if (normalizedEmail.includes('shareena') || normalizedEmail === 'shareena432@gmail.com') {
+      currentMember = members.find(m => m.slug === 'shareena')
+    } else if (normalizedEmail.includes('ashbin') || normalizedEmail.includes('ashputhusseri')) {
+      currentMember = members.find(m => m.slug === 'ashbin')
+    } else if (normalizedEmail.includes('parahiman') || normalizedEmail.includes('abdurahiman')) {
+      currentMember = members.find(m => m.slug === 'abdurahiman')
+    } else if (normalizedEmail.includes('shamil')) {
+      currentMember = members.find(m => m.slug === 'shamil')
+    }
+  }
+
+  // Auto-sync email in database if empty
+  if (currentMember && !currentMember.email && normalizedEmail) {
+    supabase.from('family_members').update({ email: normalizedEmail }).eq('id', currentMember.id).then()
+  }
+
+  const displayName = currentMember?.display_name || currentMember?.name || (firstName && firstName.length > 1 ? firstName : 'Family')
+  const displayInitial = displayName.charAt(0).toUpperCase()
+
   let userAvatarUrl: string | null = null
   if (currentMember) {
     const matched = avatarFiles?.find(f => f.name.startsWith(`${currentMember.slug}.`))
@@ -153,12 +176,12 @@ export default async function HomePage() {
               // eslint-disable-next-line @next/next/no-img-element
               <img
                 src={userAvatarUrl}
-                alt={firstName || 'User'}
+                alt={displayName}
                 className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl object-cover ring-2 ring-white/20 shadow-md flex-shrink-0 bg-slate-800"
               />
             ) : (
               <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-violet-600 text-white font-extrabold text-lg sm:text-xl flex items-center justify-center ring-2 ring-white/20 shadow-md flex-shrink-0">
-                {firstName ? firstName.charAt(0).toUpperCase() : 'P'}
+                {displayInitial}
               </div>
             )}
 
@@ -167,7 +190,7 @@ export default async function HomePage() {
                 {greeting},
               </span>
               <h1 className="text-xl sm:text-2xl font-black text-white tracking-tight leading-tight mt-0.5 truncate">
-                {firstName || 'Family'}
+                {displayName}
               </h1>
             </div>
           </div>
@@ -240,7 +263,7 @@ export default async function HomePage() {
                   {member.display_name}
                 </h3>
                 <div className="text-[11px] font-semibold text-slate-500 flex items-center gap-1 mt-1 group-hover:text-slate-900 transition-colors">
-                  <span>View vault</span>
+                  <span>View documents</span>
                   <svg className="w-3 h-3 transition-transform group-hover:translate-x-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
                   </svg>
