@@ -4,7 +4,13 @@ import { NextResponse } from 'next/server';
 export async function GET(request: Request) {
   const requestUrl = new URL(request.url);
   const code = requestUrl.searchParams.get('code');
-  const origin = requestUrl.origin;
+  
+  // Use forwarded host from Vercel proxy to ensure mobile redirects to the live domain
+  const forwardedHost = request.headers.get('x-forwarded-host');
+  const forwardedProto = request.headers.get('x-forwarded-proto') || 'https';
+  const origin = forwardedHost
+    ? `${forwardedProto}://${forwardedHost}`
+    : requestUrl.origin;
 
   if (code) {
     const supabase = await createClient();
