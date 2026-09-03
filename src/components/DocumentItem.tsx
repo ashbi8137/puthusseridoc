@@ -27,7 +27,7 @@ export default function DocumentItem({ document: doc }: DocumentItemProps) {
         {/* Document Format Badge / Thumbnail (PDF or Image preview) */}
         {isImage ? (
           doc.signed_url ? (
-            <Link href={`/view/${doc.id}`} className="relative group block flex-shrink-0">
+            <Link href={`/view/${doc.id}`} prefetch={true} className="relative group block flex-shrink-0 active:scale-95 transition-transform">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={doc.signed_url}
@@ -39,7 +39,8 @@ export default function DocumentItem({ document: doc }: DocumentItemProps) {
           ) : (
             <Link 
               href={`/view/${doc.id}`} 
-              className="w-11 h-11 rounded-xl bg-gradient-to-br from-sky-50 via-blue-50 to-sky-100 border border-sky-200/80 flex flex-col items-center justify-center text-sky-600 shadow-2xs flex-shrink-0 group hover:scale-[1.03] transition-transform"
+              prefetch={true}
+              className="w-11 h-11 rounded-xl bg-gradient-to-br from-sky-50 via-blue-50 to-sky-100 border border-sky-200/80 flex flex-col items-center justify-center text-sky-600 shadow-2xs flex-shrink-0 group hover:scale-[1.03] active:scale-95 transition-transform"
             >
               <svg className="w-4 h-4 text-sky-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
@@ -50,7 +51,8 @@ export default function DocumentItem({ document: doc }: DocumentItemProps) {
         ) : (
           <Link 
             href={`/view/${doc.id}`} 
-            className="w-11 h-11 rounded-xl bg-gradient-to-br from-rose-50 via-red-50 to-rose-100 border border-rose-200/80 flex flex-col items-center justify-center text-rose-600 shadow-2xs flex-shrink-0 group hover:scale-[1.03] transition-transform"
+            prefetch={true}
+            className="w-11 h-11 rounded-xl bg-gradient-to-br from-rose-50 via-red-50 to-rose-100 border border-rose-200/80 flex flex-col items-center justify-center text-rose-600 shadow-2xs flex-shrink-0 group hover:scale-[1.03] active:scale-95 transition-transform"
           >
             <svg className="w-4 h-4 text-rose-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.2">
               <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -63,7 +65,8 @@ export default function DocumentItem({ document: doc }: DocumentItemProps) {
         <div className="min-w-0 flex-1">
           <Link 
             href={`/view/${doc.id}`} 
-            className="font-bold text-xs sm:text-sm text-slate-900 truncate hover:text-indigo-600 transition-colors block"
+            prefetch={true}
+            className="font-bold text-xs sm:text-sm text-slate-900 truncate hover:text-indigo-600 active:opacity-75 transition-colors block"
           >
             {doc.document_name}
           </Link>

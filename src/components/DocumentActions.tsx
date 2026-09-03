@@ -92,7 +92,8 @@ export default function DocumentActions({ document: doc }: DocumentActionsProps)
     <div className="flex items-center gap-1.5 flex-shrink-0">
       <Link 
         href={`/view/${doc.id}`}
-        className="px-2.5 py-1.5 text-xs font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200/70 rounded-lg transition-colors cursor-pointer"
+        prefetch={true}
+        className="px-2.5 py-1.5 text-xs font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200/70 rounded-lg transition-all active:scale-95 cursor-pointer"
       >
         View
       </Link>

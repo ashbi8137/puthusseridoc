@@ -112,7 +112,8 @@ export default async function FamilyMemberPage({ params }: { params: Promise<{ s
         <div className="flex items-center justify-between">
           <Link 
             href="/home" 
-            className="inline-flex items-center gap-1.5 text-slate-500 hover:text-slate-900 transition-colors text-xs font-semibold bg-white/80 px-3 py-1.5 rounded-full border border-slate-200/60 shadow-2xs"
+            prefetch={true}
+            className="inline-flex items-center gap-1.5 text-slate-600 hover:text-slate-900 transition-all text-xs font-semibold bg-white/90 active:scale-95 active:bg-slate-100 px-3 py-1.5 rounded-full border border-slate-200/70 shadow-2xs"
           >
             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5">
               <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
