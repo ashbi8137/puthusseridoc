@@ -44,57 +44,56 @@ export default async function FamilyMemberPage({ params }: { params: Promise<{ s
     notFound()
   }
 
-  // Get signed URL for profile avatar from storage or database
-  let signedAvatarUrl: string | null = null
-  try {
-    const { data: avatarFiles } = await supabase.storage
+  // Fetch documents and avatars in PARALLEL in a single roundtrip
+  const [docsRes, avatarListRes] = await Promise.all([
+    supabase
+      .from('documents')
+      .select('*')
+      .eq('family_member_id', member.id)
+      .order('created_at', { ascending: false }),
+    supabase.storage
       .from('family-documents')
       .list('avatars')
+  ])
 
-    const matchedAvatar = avatarFiles?.find(f => 
-      f.name.startsWith(`${member.slug}.`)
-    )
+  const rawDocs = docsRes.data || []
+  const avatarFiles = avatarListRes.data || []
 
-    if (matchedAvatar) {
-      const { data } = await supabase.storage
+  // Collect all paths to sign: avatar + all documents
+  const matchedAvatar = avatarFiles.find(f => f.name.startsWith(`${member.slug}.`))
+  const avatarPath = matchedAvatar ? `avatars/${matchedAvatar.name}` : member.avatar_url
+
+  const pathsToSign: string[] = []
+  if (avatarPath) pathsToSign.push(avatarPath)
+  rawDocs.forEach(d => {
+    if (d.file_path) pathsToSign.push(d.file_path)
+  })
+
+  // Batch sign all URLs in ONE single network request!
+  const urlMap = new Map<string, string>()
+  if (pathsToSign.length > 0) {
+    try {
+      const { data: signedResults } = await supabase.storage
         .from('family-documents')
-        .createSignedUrl(`avatars/${matchedAvatar.name}`, 3600)
-      signedAvatarUrl = data?.signedUrl || null
-    } else if (member.avatar_url) {
-      const { data } = await supabase.storage
-        .from('family-documents')
-        .createSignedUrl(member.avatar_url, 3600)
-      signedAvatarUrl = data?.signedUrl || null
+        .createSignedUrls(pathsToSign, 3600)
+
+      signedResults?.forEach(item => {
+        if (item?.path && item?.signedUrl) {
+          urlMap.set(item.path, item.signedUrl)
+        }
+      })
+    } catch {
+      // Fallback
     }
-  } catch {
-    signedAvatarUrl = null
   }
 
-  const { data: rawDocuments } = await supabase
-    .from('documents')
-    .select('*')
-    .eq('family_member_id', member.id)
-    .order('created_at', { ascending: false })
+  const signedAvatarUrl = avatarPath ? (urlMap.get(avatarPath) || null) : null
 
-  const rawDocs = rawDocuments || []
+  const docs = rawDocs.map(doc => ({
+    ...doc,
+    signed_url: urlMap.get(doc.file_path) || null,
+  }))
 
-  // Generate signed URLs for thumbnail previews
-  const docs = await Promise.all(
-    rawDocs.map(async (doc) => {
-      try {
-        const { data } = await supabase.storage
-          .from('family-documents')
-          .createSignedUrl(doc.file_path, 3600)
-        return {
-          ...doc,
-          signed_url: data?.signedUrl || null,
-        }
-      } catch {
-        return { ...doc, signed_url: null }
-      }
-    })
-  )
-  
   const importantDocs = docs.filter(d => d.is_common_document)
   const otherDocs = docs.filter(d => !d.is_common_document)
 

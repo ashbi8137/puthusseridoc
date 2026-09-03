@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { APP_NAME } from '@/lib/constants'
 import Link from 'next/link'
 import SearchSection from '@/components/SearchSection'
+import MemberGrid from '@/components/MemberGrid'
 
 export const revalidate = 0
 
@@ -48,75 +49,70 @@ const MEMBER_THEMES: Record<string, {
 
 export default async function HomePage() {
   const supabase = await createClient()
-  
-  const { data: { user } } = await supabase.auth.getUser()
+
+  // Run ALL database queries and storage listing in a single parallel burst!
+  const [
+    { data: { user } },
+    { data: rawFamilyMembers },
+    { data: rawRecentDocs },
+    { data: avatarFiles }
+  ] = await Promise.all([
+    supabase.auth.getUser(),
+    supabase.from('family_members').select('*, documents(id)').order('created_at'),
+    supabase.from('documents').select('id, document_name, document_type, file_path, file_name, file_type, file_size, created_at, family_members(display_name, slug)').order('created_at', { ascending: false }).limit(3),
+    supabase.storage.from('family-documents').list('avatars'),
+  ])
+
   const firstName = user?.user_metadata?.full_name?.split(' ')[0] || user?.user_metadata?.name?.split(' ')[0] || user?.email?.split('@')[0] || ''
   const userEmail = user?.email || ''
 
-  // Fetch all family members
-  const { data: rawFamilyMembers } = await supabase
-    .from('family_members')
-    .select('*, documents(id)')
-    .order('created_at')
-
   const members = rawFamilyMembers || []
+  const avatars = avatarFiles || []
+  const recentRaw = rawRecentDocs || []
 
-  // List avatars in storage bucket directly
-  const { data: avatarFiles } = await supabase.storage
-    .from('family-documents')
-    .list('avatars')
+  // Collect all paths to sign in a single batch:
+  // 1. Member avatars
+  // 2. Recent documents
+  const pathsToSign: string[] = []
+  members.forEach(m => {
+    const matched = avatars.find(f => f.name.startsWith(`${m.slug}.`))
+    const path = matched ? `avatars/${matched.name}` : m.avatar_url
+    if (path) pathsToSign.push(path)
+  })
+  recentRaw.forEach(d => {
+    if (d.file_path) pathsToSign.push(d.file_path)
+  })
 
-  // Generate signed URLs for profile avatars if set in storage or DB
-  const familyMembers = await Promise.all(
-    members.map(async (member) => {
-      try {
-        const matchedAvatar = avatarFiles?.find(f => f.name.startsWith(`${member.slug}.`))
-        if (matchedAvatar) {
-          const { data } = await supabase.storage
-            .from('family-documents')
-            .createSignedUrl(`avatars/${matchedAvatar.name}`, 3600)
-          return {
-            ...member,
-            signed_avatar_url: data?.signedUrl || null,
-          }
-        } else if (member.avatar_url) {
-          const { data } = await supabase.storage
-            .from('family-documents')
-            .createSignedUrl(member.avatar_url, 3600)
-          return {
-            ...member,
-            signed_avatar_url: data?.signedUrl || null,
-          }
+  // Single batch signed URLs call for everything on the home page!
+  const urlMap = new Map<string, string>()
+  if (pathsToSign.length > 0) {
+    try {
+      const { data: signedResults } = await supabase.storage
+        .from('family-documents')
+        .createSignedUrls(pathsToSign, 3600)
+      signedResults?.forEach(item => {
+        if (item?.path && item?.signedUrl) {
+          urlMap.set(item.path, item.signedUrl)
         }
-        return { ...member, signed_avatar_url: null }
-      } catch {
-        return { ...member, signed_avatar_url: null }
-      }
-    })
-  )
+      })
+    } catch {
+      // Fallback
+    }
+  }
 
-  // Fetch recent documents across the vault
-  const { data: rawRecentDocs } = await supabase
-    .from('documents')
-    .select('id, document_name, document_type, file_path, file_name, file_type, file_size, created_at, family_members(display_name, slug)')
-    .order('created_at', { ascending: false })
-    .limit(3)
+  const familyMembers = members.map(m => {
+    const matched = avatars.find(f => f.name.startsWith(`${m.slug}.`))
+    const path = matched ? `avatars/${matched.name}` : m.avatar_url
+    return {
+      ...m,
+      signed_avatar_url: path ? (urlMap.get(path) || null) : null
+    }
+  })
 
-  const recentDocs = await Promise.all(
-    (rawRecentDocs || []).map(async (doc: any) => {
-      try {
-        const { data } = await supabase.storage
-          .from('family-documents')
-          .createSignedUrl(doc.file_path, 3600)
-        return {
-          ...doc,
-          signed_url: data?.signedUrl || null,
-        }
-      } catch {
-        return { ...doc, signed_url: null }
-      }
-    })
-  )
+  const recentDocs = recentRaw.map(d => ({
+    ...d,
+    signed_url: urlMap.get(d.file_path) || null
+  }))
 
   const totalDocuments = familyMembers.reduce((acc, m) => acc + ((m.documents as any[])?.length || 0), 0)
   const greeting = getGreeting()
@@ -219,60 +215,8 @@ export default async function HomePage() {
         </h2>
       </div>
 
-      {/* 2x2 Mobile Grid */}
-      <div className="grid grid-cols-2 gap-3">
-        {familyMembers.map((member) => {
-          const theme = MEMBER_THEMES[member.slug] || {
-            cardBg: 'bg-gradient-to-br from-white via-slate-50 to-indigo-50/40',
-            borderColor: 'border-slate-200/90 hover:border-slate-300',
-            avatarBg: 'bg-slate-900 text-white',
-            accentColor: 'text-slate-700',
-          }
-
-          const docCount = (member.documents as any[])?.length || 0
-
-          return (
-            <Link 
-              key={member.id} 
-              href={`/family/${member.slug}`}
-              className={`group ${theme.cardBg} rounded-2xl shadow-xs hover:shadow-md transition-all duration-200 border ${theme.borderColor} p-3.5 sm:p-4 flex flex-col justify-between min-h-[125px]`}
-            >
-              {/* Card Top: Avatar & Count */}
-              <div className="flex items-center justify-between">
-                {member.signed_avatar_url ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={member.signed_avatar_url}
-                    alt={member.display_name}
-                    className="w-10 h-10 rounded-xl object-cover border border-white shadow-2xs"
-                  />
-                ) : (
-                  <div className={`w-10 h-10 rounded-xl ${theme.avatarBg} font-bold text-sm flex items-center justify-center shadow-xs`}>
-                    {member.display_name.charAt(0).toUpperCase()}
-                  </div>
-                )}
-                
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-white/90 border border-slate-200/70 text-slate-600 shadow-2xs">
-                  {docCount === 0 ? 'Empty' : `${docCount} doc${docCount > 1 ? 's' : ''}`}
-                </span>
-              </div>
-
-              {/* Card Bottom: Name & Action */}
-              <div className="mt-3">
-                <h3 className="text-sm sm:text-base font-bold text-slate-900 tracking-tight truncate group-hover:text-black transition-colors">
-                  {member.display_name}
-                </h3>
-                <div className="text-[11px] font-semibold text-slate-500 flex items-center gap-1 mt-1 group-hover:text-slate-900 transition-colors">
-                  <span>View documents</span>
-                  <svg className="w-3 h-3 transition-transform group-hover:translate-x-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-                  </svg>
-                </div>
-              </div>
-            </Link>
-          )
-        })}
-      </div>
+      {/* 2x2 Mobile Grid with Instant Tap Feedback */}
+      <MemberGrid familyMembers={familyMembers} themes={MEMBER_THEMES} />
 
       {/* Recently Added Section (Solves below white space beautifully) */}
       {recentDocs.length > 0 && (
