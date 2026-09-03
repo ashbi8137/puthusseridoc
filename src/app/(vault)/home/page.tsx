@@ -326,7 +326,7 @@ export default async function HomePage() {
           </svg>
         </div>
         <p className="text-xs text-slate-600 font-medium">
-          Encrypted & accessible only by our family.
+          Safe and private for our family only.
         </p>
       </div>
     </div>
