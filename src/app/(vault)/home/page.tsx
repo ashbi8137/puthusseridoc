@@ -239,6 +239,7 @@ export default async function HomePage() {
           prefetch={true}
           className="group bg-gradient-to-br from-white via-slate-50 to-indigo-50/25 rounded-2xl shadow-xs hover:shadow-md transition-all duration-200 border border-slate-200/90 hover:border-slate-300 p-3.5 sm:p-4 flex items-center justify-between gap-3 active:scale-[0.98] cursor-pointer select-none"
         >
+          {/* Left: Icon + Title & 'View documents' underneath */}
           <div className="flex items-center gap-3 min-w-0">
             <div className="w-10 h-10 rounded-xl bg-slate-900 text-white flex items-center justify-center shadow-xs flex-shrink-0">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.2">
@@ -246,26 +247,22 @@ export default async function HomePage() {
               </svg>
             </div>
             <div className="min-w-0">
-              <div className="flex items-center gap-2">
-                <h3 className="text-sm sm:text-base font-bold text-slate-900 tracking-tight group-hover:text-black transition-colors">
-                  Common Documents
-                </h3>
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-white/90 border border-slate-200/70 text-slate-600 shadow-2xs">
-                  {commonDocCount === 0 ? 'Empty' : `${commonDocCount} doc${commonDocCount > 1 ? 's' : ''}`}
-                </span>
+              <h3 className="text-sm sm:text-base font-bold text-slate-900 tracking-tight group-hover:text-black transition-colors">
+                Common Documents
+              </h3>
+              <div className="text-[11px] font-semibold text-slate-500 flex items-center gap-1 mt-0.5 group-hover:text-slate-900 transition-colors">
+                <span>View documents</span>
+                <svg className="w-3 h-3 transition-transform group-hover:translate-x-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                </svg>
               </div>
-              <p className="text-xs text-slate-500 mt-0.5 truncate">
-                Shared family documents
-              </p>
             </div>
           </div>
 
-          <div className="text-[11px] font-semibold text-slate-500 flex items-center gap-1 group-hover:text-slate-900 transition-colors flex-shrink-0">
-            <span>View documents</span>
-            <svg className="w-3 h-3 transition-transform group-hover:translate-x-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-            </svg>
-          </div>
+          {/* Rightmost Part: Empty or Count */}
+          <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-white/90 border border-slate-200/70 text-slate-600 shadow-2xs flex-shrink-0">
+            {commonDocCount === 0 ? 'Empty' : `${commonDocCount} doc${commonDocCount > 1 ? 's' : ''}`}
+          </span>
         </Link>
       </section>
 
@@ -337,17 +334,6 @@ export default async function HomePage() {
         </section>
       )}
 
-      {/* Reassuring Security & Privacy Banner */}
-      <div className="bg-gradient-to-r from-emerald-500/10 via-teal-500/5 to-indigo-500/10 rounded-2xl p-3 sm:p-3.5 border border-emerald-100/90 flex items-center gap-3 shadow-2xs">
-        <div className="w-7 h-7 rounded-lg bg-emerald-600 text-white flex items-center justify-center shadow-xs flex-shrink-0">
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-          </svg>
-        </div>
-        <p className="text-xs text-slate-600 font-medium">
-          Safe and private for our family only.
-        </p>
-      </div>
     </div>
   )
 }
