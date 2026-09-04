@@ -55,12 +55,14 @@ export default async function HomePage() {
     { data: { user } },
     { data: rawFamilyMembers },
     { data: rawRecentDocs },
-    { data: avatarFiles }
+    { data: avatarFiles },
+    { count: rawCommonCount }
   ] = await Promise.all([
     supabase.auth.getUser(),
     supabase.from('family_members').select('*, documents(id)').order('created_at'),
     supabase.from('documents').select('id, document_name, document_type, file_path, file_name, file_type, file_size, created_at, family_members(display_name, slug)').order('created_at', { ascending: false }).limit(3),
     supabase.storage.from('family-documents').list('avatars'),
+    supabase.from('documents').select('id', { count: 'exact', head: true }).or('document_type.eq.common_document,document_type.eq.common'),
   ])
 
   const firstName = user?.user_metadata?.full_name?.split(' ')[0] || user?.user_metadata?.name?.split(' ')[0] || user?.email?.split('@')[0] || ''
@@ -69,6 +71,7 @@ export default async function HomePage() {
   const members = rawFamilyMembers || []
   const avatars = avatarFiles || []
   const recentRaw = rawRecentDocs || []
+  const commonDocCount = rawCommonCount || 0
 
   // Collect all paths to sign in a single batch:
   // 1. Member avatars
@@ -109,12 +112,17 @@ export default async function HomePage() {
     }
   })
 
+  // Only the 4 individual family members in the 2x2 grid
+  const individualMembers = familyMembers.filter(m => 
+    ['ashbin', 'abdurahiman', 'shareena', 'shamil'].includes(m.slug)
+  )
+
   const recentDocs = recentRaw.map(d => ({
     ...d,
     signed_url: urlMap.get(d.file_path) || null
   }))
 
-  const totalDocuments = familyMembers.reduce((acc, m) => acc + ((m.documents as any[])?.length || 0), 0)
+  const totalDocuments = individualMembers.reduce((acc, m) => acc + ((m.documents as any[])?.length || 0), 0) + commonDocCount
   const greeting = getGreeting()
 
   // Find current user's family member record for personalized hero card
@@ -216,7 +224,50 @@ export default async function HomePage() {
       </div>
 
       {/* 2x2 Mobile Grid with Instant Tap Feedback */}
-      <MemberGrid familyMembers={familyMembers} themes={MEMBER_THEMES} />
+      <MemberGrid familyMembers={individualMembers} themes={MEMBER_THEMES} />
+
+      {/* 📁 COMMON DOCUMENTS SECTION */}
+      <section className="space-y-2 pt-1">
+        <div className="px-1">
+          <h2 className="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
+            <span>Common Documents</span>
+          </h2>
+        </div>
+
+        <Link
+          href="/common"
+          prefetch={true}
+          className="group bg-gradient-to-br from-white via-slate-50 to-indigo-50/25 rounded-2xl shadow-xs hover:shadow-md transition-all duration-200 border border-slate-200/90 hover:border-slate-300 p-3.5 sm:p-4 flex items-center justify-between gap-3 active:scale-[0.98] cursor-pointer select-none"
+        >
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-10 h-10 rounded-xl bg-slate-900 text-white flex items-center justify-center shadow-xs flex-shrink-0">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.2">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+              </svg>
+            </div>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <h3 className="text-sm sm:text-base font-bold text-slate-900 tracking-tight group-hover:text-black transition-colors">
+                  Common Documents
+                </h3>
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-white/90 border border-slate-200/70 text-slate-600 shadow-2xs">
+                  {commonDocCount === 0 ? 'Empty' : `${commonDocCount} doc${commonDocCount > 1 ? 's' : ''}`}
+                </span>
+              </div>
+              <p className="text-xs text-slate-500 mt-0.5 truncate">
+                Shared family documents
+              </p>
+            </div>
+          </div>
+
+          <div className="text-[11px] font-semibold text-slate-500 flex items-center gap-1 group-hover:text-slate-900 transition-colors flex-shrink-0">
+            <span>View documents</span>
+            <svg className="w-3 h-3 transition-transform group-hover:translate-x-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+            </svg>
+          </div>
+        </Link>
+      </section>
 
       {/* Recently Added Section (Solves below white space beautifully) */}
       {recentDocs.length > 0 && (

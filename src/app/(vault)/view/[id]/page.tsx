@@ -42,12 +42,15 @@ export default async function ViewDocumentPage({ params }: { params: Promise<{ i
   }
 
   const isPdf = doc.file_type === 'application/pdf' || doc.file_name.toLowerCase().endsWith('.pdf')
+  const isCommon = doc.document_type === 'common_document' || doc.document_type === 'common' || member?.slug === 'common'
+  const fallbackHref = isCommon ? '/common' : `/family/${member?.slug || 'home'}`
+  const backLabel = isCommon ? 'Back to Common Documents' : `Back to ${member?.display_name || 'Family'}`
 
   return (
     <div className="space-y-6">
       <header className="space-y-4">
         <div className="flex items-center justify-between">
-          <BackButton fallbackHref={`/family/${member.slug}`} label={`Back to ${member.display_name}`} />
+          <BackButton fallbackHref={fallbackHref} label={backLabel} />
           
           <DownloadButton
             downloadUrl={downloadUrl}
@@ -60,7 +63,9 @@ export default async function ViewDocumentPage({ params }: { params: Promise<{ i
             {doc.document_name}
           </h1>
           <div className="flex items-center gap-2 text-stone-500 text-sm mt-1">
-            <span className="font-medium text-stone-700">{member.display_name}</span>
+            <span className="font-medium text-stone-700">
+              {isCommon ? 'Common Document' : (member?.display_name || 'Family')}
+            </span>
             <span>•</span>
             <span>{new Date(doc.created_at).toLocaleDateString()}</span>
           </div>
