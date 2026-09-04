@@ -60,12 +60,8 @@ export default function MemberGrid({ familyMembers, themes }: MemberGridProps) {
                 </div>
               )}
 
-              <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold transition-all shadow-2xs ${
-                isClicked 
-                  ? 'bg-indigo-600 text-white animate-pulse' 
-                  : 'bg-white/90 border border-slate-200/70 text-slate-600'
-              }`}>
-                {isClicked ? 'Opening...' : docCount === 0 ? 'Empty' : `${docCount} doc${docCount > 1 ? 's' : ''}`}
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-white/90 border border-slate-200/70 text-slate-600 shadow-2xs">
+                {docCount === 0 ? 'Empty' : `${docCount} doc${docCount > 1 ? 's' : ''}`}
               </span>
             </div>
 
