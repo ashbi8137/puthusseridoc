@@ -4,7 +4,8 @@ import Link from 'next/link'
 import SearchSection from '@/components/SearchSection'
 import MemberGrid from '@/components/MemberGrid'
 
-export const revalidate = 30
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
 
 function getGreeting() {
   const options = { timeZone: 'Asia/Kolkata', hour: 'numeric', hour12: false } as const
@@ -59,7 +60,7 @@ export default async function HomePage() {
     { count: rawCommonCount }
   ] = await Promise.all([
     supabase.auth.getUser(),
-    supabase.from('family_members').select('*, documents(id)').order('created_at'),
+    supabase.from('family_members').select('*, documents(id, document_type)').order('created_at'),
     supabase.from('documents').select('id, document_name, document_type, file_path, file_name, file_type, file_size, created_at, family_members(display_name, slug)').order('created_at', { ascending: false }).limit(3),
     supabase.storage.from('family-documents').list('avatars'),
     supabase.from('documents').select('id', { count: 'exact', head: true }).or('document_type.eq.common_document,document_type.eq.common'),
@@ -112,10 +113,15 @@ export default async function HomePage() {
     }
   })
 
-  // Only the 4 individual family members in the 2x2 grid
-  const individualMembers = familyMembers.filter(m => 
-    ['ashbin', 'abdurahiman', 'shareena', 'shamil'].includes(m.slug)
-  )
+  // Only the 4 individual family members in the 2x2 grid (counting only personal documents)
+  const individualMembers = familyMembers
+    .filter(m => ['ashbin', 'abdurahiman', 'shareena', 'shamil'].includes(m.slug))
+    .map(m => ({
+      ...m,
+      documents: ((m.documents as any[]) || []).filter(
+        d => d.document_type !== 'common_document' && d.document_type !== 'common'
+      )
+    }))
 
   const recentDocs = recentRaw.map(d => ({
     ...d,
@@ -281,7 +287,8 @@ export default async function HomePage() {
           <div className="bg-white rounded-2xl shadow-xs border border-slate-200/80 overflow-hidden divide-y divide-slate-100">
             {recentDocs.map((doc: any) => {
               const isImage = doc.file_type?.startsWith('image/') || /\.(jpg|jpeg|png|webp|gif)$/i.test(doc.file_name)
-              const memberName = doc.family_members?.display_name || 'Family'
+              const isCommon = doc.document_type === 'common_document' || doc.document_type === 'common'
+              const memberName = isCommon ? 'Common' : (doc.family_members?.display_name || 'Family')
 
               return (
                 <Link

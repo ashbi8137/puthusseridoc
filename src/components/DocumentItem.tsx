@@ -22,7 +22,7 @@ export default function DocumentItem({ document: doc }: DocumentItemProps) {
   const isImage = doc.file_type?.startsWith('image/') || /\.(jpg|jpeg|png|webp|gif|heic|bmp)$/i.test(doc.file_name)
 
   return (
-    <div className="p-2.5 sm:p-3.5 flex items-center justify-between gap-2 sm:gap-3 bg-white hover:bg-slate-50/70 transition-colors">
+    <div className="p-2.5 sm:p-3.5 flex items-center justify-between gap-2 sm:gap-3 bg-white hover:bg-slate-50/70 transition-colors first:rounded-t-2xl last:rounded-b-2xl">
       <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 flex-1">
         {/* Document Format Badge / Thumbnail (PDF or Image preview) */}
         {isImage ? (

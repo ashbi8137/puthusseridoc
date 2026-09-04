@@ -7,7 +7,8 @@ import DocumentItem from '@/components/DocumentItem'
 import AvatarUploader from '@/components/AvatarUploader'
 import BackButton from '@/components/BackButton'
 
-export const revalidate = 30
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
 
 const MEMBER_THEMES: Record<string, {
   headerBg: string
@@ -46,11 +47,13 @@ export default async function FamilyMemberPage({ params }: { params: Promise<{ s
   }
 
   // Fetch documents and avatars in PARALLEL in a single roundtrip
+  // Personal documents ONLY: strictly exclude common documents
   const [docsRes, avatarListRes] = await Promise.all([
     supabase
       .from('documents')
       .select('*')
       .eq('family_member_id', member.id)
+      .not('document_type', 'in', '("common_document","common")')
       .order('created_at', { ascending: false }),
     supabase.storage
       .from('family-documents')
@@ -90,10 +93,13 @@ export default async function FamilyMemberPage({ params }: { params: Promise<{ s
 
   const signedAvatarUrl = avatarPath ? (urlMap.get(avatarPath) || null) : null
 
-  const docs = rawDocs.map(doc => ({
-    ...doc,
-    signed_url: urlMap.get(doc.file_path) || null,
-  }))
+  // Personal documents ONLY: strictly exclude any common documents
+  const personalDocs = rawDocs
+    .filter(d => d.document_type !== 'common_document' && d.document_type !== 'common')
+    .map(doc => ({
+      ...doc,
+      signed_url: urlMap.get(doc.file_path) || null,
+    }))
 
   // Natural case-insensitive alphabetical sort function (handles numbers like 10th before 12th)
   const sortAlphabetically = (a: any, b: any) => {
@@ -103,12 +109,12 @@ export default async function FamilyMemberPage({ params }: { params: Promise<{ s
   }
 
   // 1. Sort all uploaded Important Documents strictly in alphabetical A → Z order
-  const sortedImportantDocs = docs
-    .filter(d => d.is_common_document)
+  const sortedImportantDocs = personalDocs
+    .filter(d => Boolean(d.is_common_document))
     .sort(sortAlphabetically)
 
   // 2. Sort all uploaded Other Documents strictly in alphabetical A → Z order
-  const sortedOtherDocs = docs
+  const sortedOtherDocs = personalDocs
     .filter(d => !d.is_common_document)
     .sort(sortAlphabetically)
 
@@ -129,7 +135,7 @@ export default async function FamilyMemberPage({ params }: { params: Promise<{ s
         <div className="flex items-center justify-between">
           <BackButton fallbackHref="/home" label="Back to Home" />
           <span className="text-xs font-medium text-slate-400">
-            {docs.length} total document{docs.length === 1 ? '' : 's'}
+            {personalDocs.length} total document{personalDocs.length === 1 ? '' : 's'}
           </span>
         </div>
         
@@ -153,7 +159,7 @@ export default async function FamilyMemberPage({ params }: { params: Promise<{ s
         <MemberPageClient 
           memberSlug={member.slug} 
           memberId={member.id} 
-          existingDocs={docs} 
+          existingDocs={personalDocs} 
         />
       </div>
 
@@ -168,7 +174,7 @@ export default async function FamilyMemberPage({ params }: { params: Promise<{ s
           </span>
         </div>
 
-        <div className="bg-white rounded-2xl shadow-xs border border-slate-200/80 overflow-hidden divide-y divide-slate-100">
+        <div className="bg-white rounded-2xl shadow-xs border border-slate-200/80 divide-y divide-slate-100">
           {/* 1. All uploaded Important Documents in alphabetical A → Z order */}
           {sortedImportantDocs.map(doc => (
             <DocumentItem key={doc.id} document={doc} />
@@ -176,7 +182,7 @@ export default async function FamilyMemberPage({ params }: { params: Promise<{ s
 
           {/* 2. Pending checklist documents not yet uploaded (also sorted A → Z) */}
           {pendingCommonDocs.map(docType => (
-            <div key={docType.type} className="p-2.5 sm:p-3.5 flex items-center justify-between gap-2.5 sm:gap-3 bg-white hover:bg-slate-50/40 transition-colors">
+            <div key={docType.type} className="p-2.5 sm:p-3.5 flex items-center justify-between gap-2.5 sm:gap-3 bg-white hover:bg-slate-50/40 transition-colors first:rounded-t-2xl last:rounded-b-2xl">
               <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
                 <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-slate-100/90 border border-slate-200/60 border-dashed flex items-center justify-center text-slate-400 flex-shrink-0">
                   <svg className="w-4 h-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="1.5">
@@ -207,7 +213,7 @@ export default async function FamilyMemberPage({ params }: { params: Promise<{ s
         </div>
         
         {sortedOtherDocs.length > 0 ? (
-          <div className="bg-white rounded-2xl shadow-xs border border-slate-200/80 overflow-hidden divide-y divide-slate-100">
+          <div className="bg-white rounded-2xl shadow-xs border border-slate-200/80 divide-y divide-slate-100">
             {sortedOtherDocs.map(doc => (
               <DocumentItem key={doc.id} document={doc} />
             ))}

@@ -1,4 +1,5 @@
 import { ReactNode } from 'react'
+import ToastContainer from '@/components/Toast'
 
 export default function VaultLayout({
   children,
@@ -12,6 +13,7 @@ export default function VaultLayout({
       <div className="max-w-md mx-auto w-full px-4 pt-4 sm:pt-8">
         {children}
       </div>
+      <ToastContainer />
     </div>
   )
 }

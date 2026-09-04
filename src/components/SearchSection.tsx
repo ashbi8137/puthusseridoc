@@ -194,7 +194,9 @@ export default function SearchSection() {
                     </div>
                     <div className="text-right flex-shrink-0">
                       <span className="text-[11px] font-medium text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md">
-                        {doc.family_members?.display_name}
+                        {doc.document_type === 'common_document' || doc.document_type === 'common'
+                          ? 'Common'
+                          : (doc.family_members?.display_name || 'Family')}
                       </span>
                     </div>
                   </Link>

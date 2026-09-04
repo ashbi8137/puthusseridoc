@@ -4,6 +4,7 @@ import { useState, useRef } from 'react'
 import { createBrowserClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import { ALLOWED_FILE_TYPES, MAX_FILE_SIZE } from '@/lib/constants'
+import { showToast } from './Toast'
 
 interface CommonUploadModalProps {
   isOpen: boolean
@@ -87,11 +88,19 @@ export default function CommonUploadModal({ isOpen, onClose, memberId }: CommonU
 
       if (storageError) throw storageError
 
-      // 2. Insert document record in PostgreSQL
-      const { error: dbError } = await supabase
+      // 2. Resolve commonMemberId or fallback
+      const { data: commonMember } = await supabase
+        .from('family_members')
+        .select('id')
+        .eq('slug', 'common')
+        .maybeSingle()
+
+      const targetMemberId = commonMember?.id || null
+
+      let { error: dbError } = await supabase
         .from('documents')
         .insert({
-          family_member_id: memberId,
+          family_member_id: targetMemberId,
           document_type: 'common_document',
           document_name: documentName.trim(),
           is_common_document: true,
@@ -102,13 +111,32 @@ export default function CommonUploadModal({ isOpen, onClose, memberId }: CommonU
           uploaded_by: user.id,
         })
 
+      // If database has NOT NULL constraint on family_member_id and no 'common' member exists
+      if (dbError && targetMemberId === null && (dbError.message?.includes('not-null') || dbError.code === '23502')) {
+        const fallbackRes = await supabase
+          .from('documents')
+          .insert({
+            family_member_id: memberId,
+            document_type: 'common_document',
+            document_name: documentName.trim(),
+            is_common_document: true,
+            file_path: filePath,
+            file_name: file.name,
+            file_type: file.type,
+            file_size: file.size,
+            uploaded_by: user.id,
+          })
+        dbError = fallbackRes.error
+      }
+
       if (dbError) throw dbError
 
       setSuccess(true)
+      showToast('✅ Document uploaded successfully')
       setTimeout(() => {
         handleClose()
         router.refresh()
-      }, 1000)
+      }, 800)
     } catch (err: any) {
       console.error('Upload error:', err)
       setUploadError(err.message || 'Failed to upload document. Please try again.')

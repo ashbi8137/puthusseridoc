@@ -39,6 +39,9 @@ CREATE INDEX IF NOT EXISTS idx_documents_family_member ON public.documents(famil
 CREATE INDEX IF NOT EXISTS idx_documents_type ON public.documents(document_type);
 CREATE INDEX IF NOT EXISTS idx_documents_search ON public.documents(document_name);
 
+-- Allow NULL for family_member_id (for shared Common Documents)
+ALTER TABLE public.documents ALTER COLUMN family_member_id DROP NOT NULL;
+
 -- 2. ENABLE ROW LEVEL SECURITY
 ALTER TABLE public.family_members ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.documents ENABLE ROW LEVEL SECURITY;

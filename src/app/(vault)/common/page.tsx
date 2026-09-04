@@ -3,7 +3,8 @@ import BackButton from '@/components/BackButton'
 import DocumentItem from '@/components/DocumentItem'
 import CommonPageClient from '@/components/CommonPageClient'
 
-export const revalidate = 30
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
 
 export default async function CommonDocumentsPage() {
   const supabase = await createClient()
@@ -106,7 +107,7 @@ export default async function CommonDocumentsPage() {
         </div>
 
         {sortedDocs.length > 0 ? (
-          <div className="bg-white rounded-2xl shadow-xs border border-slate-200/80 overflow-hidden divide-y divide-slate-100">
+          <div className="bg-white rounded-2xl shadow-xs border border-slate-200/80 divide-y divide-slate-100">
             {sortedDocs.map(doc => (
               <DocumentItem key={doc.id} document={doc} />
             ))}
