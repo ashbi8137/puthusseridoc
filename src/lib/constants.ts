@@ -1,32 +1,32 @@
 import type { CommonDocumentType } from './types'
 
-// Primary common documents tracked with checklist status on member pages
+// Primary common documents tracked with checklist status on member pages (Alphabetical A → Z)
 export const PRIMARY_DOCUMENT_TYPES: CommonDocumentType[] = [
-  { type: 'pan', name: 'PAN Card' },
   { type: 'aadhaar', name: 'Aadhaar Card' },
   { type: 'driving_license', name: 'Driving Licence' },
+  { type: 'pan', name: 'PAN Card' },
   { type: 'passport', name: 'Passport' },
-  { type: 'voter_id', name: 'Voter ID' },
   { type: 'ration_card', name: 'Ration Card' },
+  { type: 'voter_id', name: 'Voter ID' },
 ]
 
 // Common document types backwards compatibility
 export const COMMON_DOCUMENT_TYPES = PRIMARY_DOCUMENT_TYPES
 
-// All major document options shown in the upload dropdown
+// All major document options shown in the upload dropdown (Alphabetical A → Z)
 export const MAJOR_DOCUMENT_TYPES: { type: string; name: string }[] = [
-  { type: 'pan', name: 'PAN Card' },
-  { type: 'aadhaar', name: 'Aadhaar Card' },
-  { type: 'driving_license', name: 'Driving Licence' },
-  { type: 'passport', name: 'Passport' },
-  { type: 'voter_id', name: 'Voter ID' },
-  { type: 'ration_card', name: 'Ration Card' },
-  { type: 'birth_certificate', name: 'Birth Certificate' },
   { type: 'sslc', name: '10th / SSLC Certificate' },
   { type: 'plus_two', name: '12th / Plus Two Certificate' },
-  { type: 'degree', name: 'Degree / Diploma Certificate' },
+  { type: 'aadhaar', name: 'Aadhaar Card' },
   { type: 'bank_passbook', name: 'Bank Passbook / Statement' },
+  { type: 'birth_certificate', name: 'Birth Certificate' },
+  { type: 'degree', name: 'Degree / Diploma Certificate' },
+  { type: 'driving_license', name: 'Driving Licence' },
+  { type: 'pan', name: 'PAN Card' },
+  { type: 'passport', name: 'Passport' },
+  { type: 'ration_card', name: 'Ration Card' },
   { type: 'vehicle_rc', name: 'Vehicle RC' },
+  { type: 'voter_id', name: 'Voter ID' },
 ]
 
 // Allowed file types for upload

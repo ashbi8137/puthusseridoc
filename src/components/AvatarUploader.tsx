@@ -12,6 +12,12 @@ interface AvatarUploaderProps {
   themeAvatarBg: string
 }
 
+interface CropBox {
+  x: number
+  y: number
+  size: number
+}
+
 export default function AvatarUploader({
   memberId,
   memberSlug,
@@ -26,16 +32,24 @@ export default function AvatarUploader({
   const [isUploading, setIsUploading] = useState(false)
   const [previewUrl, setPreviewUrl] = useState<string | null>(signedAvatarUrl || null)
 
-  // Crop State
+  // Crop Screen State
   const [cropModalOpen, setCropModalOpen] = useState(false)
   const [selectedImageSrc, setSelectedImageSrc] = useState<string | null>(null)
-  const [zoom, setZoom] = useState(1)
-  const [pan, setPan] = useState({ x: 0, y: 0 })
-  const [isDragging, setIsDragging] = useState(false)
-  const dragStartRef = useRef({ x: 0, y: 0, panX: 0, panY: 0 })
-  const imageRef = useRef<HTMLImageElement>(null)
+  const [imageDims, setImageDims] = useState<{ naturalWidth: number; naturalHeight: number; dispWidth: number; dispHeight: number } | null>(null)
+  const [cropBox, setCropBox] = useState<CropBox>({ x: 0, y: 0, size: 100 })
 
-  const CROP_BOX_SIZE = 260 // Visible square crop viewport in px
+  const imageRef = useRef<HTMLImageElement>(null)
+  const containerRef = useRef<HTMLDivElement>(null)
+  
+  // Drag tracking ref
+  const dragRef = useRef<{
+    mode: 'move' | 'se' | 'sw' | 'ne' | 'nw'
+    startX: number
+    startY: number
+    initX: number
+    initY: number
+    initSize: number
+  } | null>(null)
 
   useEffect(() => {
     if (signedAvatarUrl) {
@@ -43,13 +57,13 @@ export default function AvatarUploader({
     }
   }, [signedAvatarUrl])
 
-  // Handle user selecting a photo
+  // When user picks an image from their gallery/camera
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
 
     if (!file.type.startsWith('image/')) {
-      alert('Please choose an image file (JPG or PNG).')
+      alert('Please select an image file (JPG, PNG, WebP).')
       return
     }
 
@@ -58,147 +72,219 @@ export default function AvatarUploader({
       return
     }
 
-    // Clean up previous image URL if any
     if (selectedImageSrc) {
       URL.revokeObjectURL(selectedImageSrc)
     }
 
     const objectUrl = URL.createObjectURL(file)
     setSelectedImageSrc(objectUrl)
-    setZoom(1)
-    setPan({ x: 0, y: 0 })
+    setImageDims(null)
     setCropModalOpen(true)
   }
 
-  // Reset positioning helpers
-  const handleResetPosition = (type: 'center' | 'zoom-in' | 'zoom-out') => {
-    if (type === 'center') {
-      setPan({ x: 0, y: 0 })
-      setZoom(1)
-    } else if (type === 'zoom-in') {
-      setZoom((z) => Math.min(2.5, +(z + 0.2).toFixed(1)))
-    } else if (type === 'zoom-out') {
-      setZoom((z) => Math.max(1, +(z - 0.2).toFixed(1)))
-    }
-  }
+  // When the selected image loads, calculate display dimensions and center initial crop square
+  const handleImageLoaded = (e: React.SyntheticEvent<HTMLImageElement>) => {
+    const img = e.currentTarget
+    const natW = img.naturalWidth || 400
+    const natH = img.naturalHeight || 400
 
-  // Touch and Mouse Dragging
-  const handleDragStart = (clientX: number, clientY: number) => {
-    setIsDragging(true)
-    dragStartRef.current = {
-      x: clientX,
-      y: clientY,
-      panX: pan.x,
-      panY: pan.y,
-    }
-  }
+    // Available viewport space on mobile/tablet (max 280px wide x 340px high)
+    const maxW = typeof window !== 'undefined' ? Math.min(290, window.innerWidth - 64) : 280
+    const maxH = 340
 
-  const handleDragMove = useCallback((clientX: number, clientY: number) => {
-    if (!isDragging) return
-    const deltaX = clientX - dragStartRef.current.x
-    const deltaY = clientY - dragStartRef.current.y
-    setPan({
-      x: dragStartRef.current.panX + deltaX,
-      y: dragStartRef.current.panY + deltaY,
+    const scale = Math.min(maxW / natW, maxH / natH)
+    const dispW = Math.max(120, Math.round(natW * scale))
+    const dispH = Math.max(120, Math.round(natH * scale))
+
+    setImageDims({
+      naturalWidth: natW,
+      naturalHeight: natH,
+      dispWidth: dispW,
+      dispHeight: dispH,
     })
-  }, [isDragging])
 
-  const handleDragEnd = useCallback(() => {
-    setIsDragging(false)
+    // Center an initial square crop box covering ~80% of the smaller dimension
+    const initialSize = Math.max(70, Math.round(Math.min(dispW, dispH) * 0.8))
+    const initialX = Math.max(0, Math.round((dispW - initialSize) / 2))
+    const initialY = Math.max(0, Math.round((dispH - initialSize) / 2))
+
+    setCropBox({
+      x: initialX,
+      y: initialY,
+      size: initialSize,
+    })
+  }
+
+  // Helper to clamp values
+  const clamp = (val: number, min: number, max: number) => Math.min(Math.max(val, min), max)
+
+  // Pointer Down: start moving or resizing
+  const handlePointerDown = (
+    mode: 'move' | 'se' | 'sw' | 'ne' | 'nw',
+    e: React.PointerEvent
+  ) => {
+    e.preventDefault()
+    e.stopPropagation()
+    ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
+
+    dragRef.current = {
+      mode,
+      startX: e.clientX,
+      startY: e.clientY,
+      initX: cropBox.x,
+      initY: cropBox.y,
+      initSize: cropBox.size,
+    }
+  }
+
+  // Pointer Move: update crop square position or size smoothly
+  const handlePointerMove = useCallback((e: React.PointerEvent) => {
+    if (!dragRef.current || !imageDims) return
+    e.preventDefault()
+
+    const { mode, startX, startY, initX, initY, initSize } = dragRef.current
+    const dx = e.clientX - startX
+    const dy = e.clientY - startY
+    const { dispWidth: W, dispHeight: H } = imageDims
+    const minSize = 60 // Minimum crop square size
+
+    if (mode === 'move') {
+      // Move crop square within image boundaries
+      const newX = clamp(initX + dx, 0, W - cropBox.size)
+      const newY = clamp(initY + dy, 0, H - cropBox.size)
+      setCropBox(prev => ({ ...prev, x: newX, y: newY }))
+    } else if (mode === 'se') {
+      // Bottom-Right handle
+      const delta = Math.max(dx, dy)
+      const maxSize = Math.min(W - initX, H - initY)
+      const newSize = clamp(initSize + delta, minSize, maxSize)
+      setCropBox({ x: initX, y: initY, size: newSize })
+    } else if (mode === 'nw') {
+      // Top-Left handle
+      const delta = Math.min(dx, dy)
+      const maxExpand = Math.min(initX, initY)
+      const newSize = clamp(initSize - delta, minSize, initSize + maxExpand)
+      const diff = newSize - initSize
+      setCropBox({ x: initX - diff, y: initY - diff, size: newSize })
+    } else if (mode === 'ne') {
+      // Top-Right handle
+      const delta = Math.max(dx, -dy)
+      const maxExpand = Math.min(W - (initX + initSize), initY)
+      const newSize = clamp(initSize + delta, minSize, initSize + maxExpand)
+      const diff = newSize - initSize
+      setCropBox({ x: initX, y: initY - diff, size: newSize })
+    } else if (mode === 'sw') {
+      // Bottom-Left handle
+      const delta = Math.max(-dx, dy)
+      const maxExpand = Math.min(initX, H - (initY + initSize))
+      const newSize = clamp(initSize + delta, minSize, initSize + maxExpand)
+      const diff = newSize - initSize
+      setCropBox({ x: initX - diff, y: initY, size: newSize })
+    }
+  }, [imageDims, cropBox.size])
+
+  // Pointer Up: finish drag
+  const handlePointerUp = useCallback((e: React.PointerEvent) => {
+    if (dragRef.current) {
+      try {
+        ;(e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId)
+      } catch {}
+      dragRef.current = null
+    }
   }, [])
 
-  // Cancel Crop Modal
-  const handleCancelCrop = () => {
+  // Cancel
+  const handleCancel = () => {
     setCropModalOpen(false)
     if (selectedImageSrc) {
       URL.revokeObjectURL(selectedImageSrc)
       setSelectedImageSrc(null)
     }
+    setImageDims(null)
   }
 
-  // Crop to 512x512 Canvas and Upload
-  const handleSaveCrop = async () => {
+  // Done: Crop square & save
+  const handleDone = async () => {
     const img = imageRef.current
-    if (!img) return
+    if (!img || !imageDims) return
 
     setIsUploading(true)
 
     try {
-      const naturalW = img.naturalWidth || 500
-      const naturalH = img.naturalHeight || 500
+      const { naturalWidth: natW, dispWidth: dispW } = imageDims
+      const scale = natW / dispW
 
-      // Base scale to fill crop box
-      const baseScale = Math.max(CROP_BOX_SIZE / naturalW, CROP_BOX_SIZE / naturalH)
-      const scale = baseScale * zoom
-      const renderW = naturalW * scale
-      const renderH = naturalH * scale
+      const cropNatX = Math.round(cropBox.x * scale)
+      const cropNatY = Math.round(cropBox.y * scale)
+      const cropNatSize = Math.round(cropBox.size * scale)
 
-      const offsetX = (CROP_BOX_SIZE - renderW) / 2 + pan.x
-      const offsetY = (CROP_BOX_SIZE - renderH) / 2 + pan.y
-
-      // Output 512x512 square avatar
+      // Create crisp 512x512 canvas output
       const OUTPUT_SIZE = 512
       const canvas = document.createElement('canvas')
       canvas.width = OUTPUT_SIZE
       canvas.height = OUTPUT_SIZE
       const ctx = canvas.getContext('2d')
 
-      if (!ctx) throw new Error('Could not create canvas context')
+      if (!ctx) throw new Error('Canvas context could not be created')
 
-      const factor = OUTPUT_SIZE / CROP_BOX_SIZE
+      ctx.imageSmoothingEnabled = true
+      ctx.imageSmoothingQuality = 'high'
       ctx.drawImage(
         img,
-        offsetX * factor,
-        offsetY * factor,
-        renderW * factor,
-        renderH * factor
+        cropNatX,
+        cropNatY,
+        cropNatSize,
+        cropNatSize,
+        0,
+        0,
+        OUTPUT_SIZE,
+        OUTPUT_SIZE
       )
 
       const blob: Blob = await new Promise((resolve, reject) => {
         canvas.toBlob(
-          (b) => (b ? resolve(b) : reject(new Error('Failed to create image blob'))),
+          b => (b ? resolve(b) : reject(new Error('Failed to generate image blob'))),
           'image/jpeg',
-          0.9
+          0.92
         )
       })
 
       const filePath = `avatars/${memberSlug}.jpg`
 
-      // 1. Upload to Supabase Storage bucket with upsert
+      // 1. Upload to Supabase Storage with upsert
       const { error: uploadError } = await supabase.storage
         .from('family-documents')
-        .upload(filePath, blob, { 
+        .upload(filePath, blob, {
           upsert: true,
           contentType: 'image/jpeg',
         })
 
       if (uploadError) throw uploadError
 
-      // 2. Safely try database update if column exists
+      // 2. Safe DB update if column exists
       try {
         await supabase
           .from('family_members')
           .update({ avatar_url: filePath })
           .eq('id', memberId)
-      } catch {
-        // Safe to ignore
-      }
+      } catch {}
 
-      // 3. Update preview immediately
-      const newLocalUrl = URL.createObjectURL(blob)
-      setPreviewUrl(newLocalUrl)
+      // 3. Immediately display new cropped avatar
+      const newPreview = URL.createObjectURL(blob)
+      setPreviewUrl(newPreview)
       setCropModalOpen(false)
 
       if (selectedImageSrc) {
         URL.revokeObjectURL(selectedImageSrc)
         setSelectedImageSrc(null)
       }
+      setImageDims(null)
 
-      // 4. Sync server components
+      // 4. Refresh server state
       router.refresh()
     } catch (err: any) {
-      console.error('Crop save error:', err)
-      alert(err.message || 'Failed to save cropped photo. Please try again.')
+      console.error('Save photo error:', err)
+      alert(err.message || 'Failed to save photo. Please try again.')
     } finally {
       setIsUploading(false)
     }
@@ -206,27 +292,26 @@ export default function AvatarUploader({
 
   return (
     <>
-      {/* Hidden File Input — triggered natively via <label htmlFor> */}
+      {/* Hidden native file input */}
       <input
         id={inputId}
         type="file"
-        key={cropModalOpen ? 'opened' : 'closed'} // Reset input on each modal close
+        key={cropModalOpen ? 'modal-open' : 'modal-closed'}
         onChange={handleFileChange}
-        onClick={(e) => {
-          // Reset value on click so selecting the same file triggers onChange
-          (e.target as HTMLInputElement).value = ''
+        onClick={e => {
+          ;(e.target as HTMLInputElement).value = ''
         }}
         accept="image/jpeg,image/png,image/webp,image/jpg"
         className="sr-only"
         disabled={isUploading}
       />
 
-      {/* Avatar Display & Native Label Trigger */}
+      {/* Avatar Display & Tap Trigger */}
       <div className="relative flex-shrink-0">
         <label
           htmlFor={inputId}
           title="Tap to change profile photo"
-          className="relative block w-14 h-14 sm:w-16 sm:h-16 rounded-2xl overflow-hidden focus:outline-none ring-2 ring-white/60 shadow-sm cursor-pointer active:scale-95 transition-transform bg-slate-100 select-none"
+          className="relative block w-14 h-14 sm:w-16 sm:h-16 rounded-2xl overflow-hidden ring-2 ring-white/70 shadow-xs cursor-pointer active:scale-95 transition-transform bg-slate-100 select-none"
         >
           {previewUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
@@ -252,7 +337,7 @@ export default function AvatarUploader({
           )}
         </label>
 
-        {/* Small Camera Badge Button */}
+        {/* Small Camera Badge */}
         <label
           htmlFor={inputId}
           title="Change photo"
@@ -265,112 +350,106 @@ export default function AvatarUploader({
         </label>
       </div>
 
-      {/* Simple, Intuitive Crop Modal */}
+      {/* Completely Simplified Profile Crop Screen: Choose Photo -> Adjust Square -> Done */}
       {cropModalOpen && selectedImageSrc && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-150">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-sm animate-in fade-in duration-150">
           <div className="w-full max-w-sm bg-white rounded-3xl shadow-2xl overflow-hidden border border-slate-200 p-5 space-y-4">
             
-            {/* Header */}
-            <div className="flex items-center justify-between pb-1 border-b border-slate-100">
-              <div>
-                <h3 className="text-base font-bold text-slate-900">Adjust Profile Photo</h3>
-                <p className="text-[11px] text-slate-400">Drag to center your face inside the circle</p>
-              </div>
-              <button
-                type="button"
-                onClick={handleCancelCrop}
-                className="w-7 h-7 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center text-xs font-bold transition-colors cursor-pointer"
-              >
-                ✕
-              </button>
+            {/* Clean Header */}
+            <div className="text-center pb-1 border-b border-slate-100">
+              <h3 className="text-base font-bold text-slate-900">Adjust your photo</h3>
+              <p className="text-xs text-slate-400 mt-0.5">Move or resize the square box to frame your face</p>
             </div>
 
-            {/* Circular Crop Preview Viewport */}
-            <div className="flex justify-center">
+            {/* Selected Image with Adjustable Square Crop Box */}
+            <div className="flex justify-center items-center select-none py-1">
               <div
-                style={{ width: `${CROP_BOX_SIZE}px`, height: `${CROP_BOX_SIZE}px` }}
-                className="relative overflow-hidden rounded-2xl bg-slate-950 select-none shadow-inner touch-none cursor-move border border-slate-800"
-                onMouseDown={(e) => handleDragStart(e.clientX, e.clientY)}
-                onMouseMove={(e) => handleDragMove(e.clientX, e.clientY)}
-                onMouseUp={handleDragEnd}
-                onMouseLeave={handleDragEnd}
-                onTouchStart={(e) => {
-                  if (e.touches[0]) handleDragStart(e.touches[0].clientX, e.touches[0].clientY)
+                ref={containerRef}
+                style={{
+                  width: imageDims ? `${imageDims.dispWidth}px` : '280px',
+                  height: imageDims ? `${imageDims.dispHeight}px` : '280px',
                 }}
-                onTouchMove={(e) => {
-                  if (e.touches[0]) handleDragMove(e.touches[0].clientX, e.touches[0].clientY)
-                }}
-                onTouchEnd={handleDragEnd}
+                className="relative overflow-hidden rounded-2xl bg-slate-950 shadow-inner flex items-center justify-center"
               >
-                {/* Image */}
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   ref={imageRef}
                   src={selectedImageSrc}
-                  alt="Crop viewport"
+                  alt="Select area to crop"
+                  onLoad={handleImageLoaded}
                   draggable={false}
-                  style={{
-                    transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
-                    transformOrigin: 'center center',
-                    maxWidth: 'none',
-                    maxHeight: 'none',
-                  }}
                   className="w-full h-full object-contain pointer-events-none"
                 />
 
-                {/* Circular Profile Mask Guide */}
-                <div className="absolute inset-0 rounded-full border-2 border-white/80 pointer-events-none shadow-[0_0_0_9999px_rgba(15,23,42,0.65)]" />
+                {/* Adjustable Square Crop Box */}
+                {imageDims && (
+                  <div
+                    style={{
+                      left: `${cropBox.x}px`,
+                      top: `${cropBox.y}px`,
+                      width: `${cropBox.size}px`,
+                      height: `${cropBox.size}px`,
+                      boxShadow: '0 0 0 9999px rgba(15, 23, 42, 0.65)',
+                    }}
+                    onPointerDown={e => handlePointerDown('move', e)}
+                    onPointerMove={handlePointerMove}
+                    onPointerUp={handlePointerUp}
+                    className="absolute cursor-move touch-none border-2 border-white select-none transition-shadow"
+                  >
+                    {/* Circular avatar preview guideline inside the square */}
+                    <div className="absolute inset-0 rounded-full border border-white/50 pointer-events-none" />
+
+                    {/* Corner 1: Top-Left Handle */}
+                    <div
+                      onPointerDown={e => handlePointerDown('nw', e)}
+                      className="absolute -top-2.5 -left-2.5 w-6 h-6 flex items-center justify-center cursor-nwse-resize touch-none z-10"
+                    >
+                      <div className="w-3.5 h-3.5 bg-white border-2 border-slate-900 rounded-xs shadow-sm" />
+                    </div>
+
+                    {/* Corner 2: Top-Right Handle */}
+                    <div
+                      onPointerDown={e => handlePointerDown('ne', e)}
+                      className="absolute -top-2.5 -right-2.5 w-6 h-6 flex items-center justify-center cursor-nesw-resize touch-none z-10"
+                    >
+                      <div className="w-3.5 h-3.5 bg-white border-2 border-slate-900 rounded-xs shadow-sm" />
+                    </div>
+
+                    {/* Corner 3: Bottom-Left Handle */}
+                    <div
+                      onPointerDown={e => handlePointerDown('sw', e)}
+                      className="absolute -bottom-2.5 -left-2.5 w-6 h-6 flex items-center justify-center cursor-nesw-resize touch-none z-10"
+                    >
+                      <div className="w-3.5 h-3.5 bg-white border-2 border-slate-900 rounded-xs shadow-sm" />
+                    </div>
+
+                    {/* Corner 4: Bottom-Right Handle */}
+                    <div
+                      onPointerDown={e => handlePointerDown('se', e)}
+                      className="absolute -bottom-2.5 -right-2.5 w-6 h-6 flex items-center justify-center cursor-nwse-resize touch-none z-10"
+                    >
+                      <div className="w-3.5 h-3.5 bg-white border-2 border-slate-900 rounded-xs shadow-sm" />
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 
-            {/* Simple Zoom & Position Bar */}
-            <div className="flex items-center justify-between gap-2 px-1">
-              <div className="flex items-center gap-1.5">
-                <button
-                  type="button"
-                  onClick={() => handleResetPosition('zoom-out')}
-                  className="w-8 h-8 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-sm flex items-center justify-center cursor-pointer transition-colors"
-                  title="Zoom out"
-                >
-                  −
-                </button>
-                <span className="text-xs font-semibold text-slate-600 w-9 text-center">
-                  {zoom.toFixed(1)}x
-                </span>
-                <button
-                  type="button"
-                  onClick={() => handleResetPosition('zoom-in')}
-                  className="w-8 h-8 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-sm flex items-center justify-center cursor-pointer transition-colors"
-                  title="Zoom in"
-                >
-                  +
-                </button>
-              </div>
-
+            {/* Exactly 2 Buttons: Cancel and Done */}
+            <div className="flex items-center gap-2.5 pt-2 border-t border-slate-100">
               <button
                 type="button"
-                onClick={() => handleResetPosition('center')}
-                className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-semibold cursor-pointer transition-colors"
-              >
-                Reset Center
-              </button>
-            </div>
-
-            {/* Action Buttons */}
-            <div className="flex items-center gap-2 pt-2">
-              <button
-                type="button"
-                onClick={handleCancelCrop}
+                onClick={handleCancel}
                 disabled={isUploading}
-                className="flex-1 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors cursor-pointer"
+                className="flex-1 py-2.5 rounded-xl border border-slate-200 text-xs sm:text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-colors cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 type="button"
-                onClick={handleSaveCrop}
+                onClick={handleDone}
                 disabled={isUploading}
-                className="flex-1 py-2.5 rounded-xl bg-slate-900 hover:bg-black text-white text-xs font-bold shadow-sm transition-all active:scale-98 cursor-pointer disabled:opacity-50 flex items-center justify-center gap-1.5"
+                className="flex-1 py-2.5 rounded-xl bg-slate-900 hover:bg-black text-white text-xs sm:text-sm font-bold shadow-sm transition-all active:scale-98 cursor-pointer disabled:opacity-50 flex items-center justify-center gap-1.5"
               >
                 {isUploading ? (
                   <>
@@ -381,7 +460,7 @@ export default function AvatarUploader({
                     <span>Saving...</span>
                   </>
                 ) : (
-                  <span>Save Photo</span>
+                  <span>Done</span>
                 )}
               </button>
             </div>

@@ -95,11 +95,27 @@ export default async function FamilyMemberPage({ params }: { params: Promise<{ s
     signed_url: urlMap.get(doc.file_path) || null,
   }))
 
-  const importantDocs = docs.filter(d => d.is_common_document)
-  const otherDocs = docs.filter(d => !d.is_common_document)
+  // Natural case-insensitive alphabetical sort function (handles numbers like 10th before 12th)
+  const sortAlphabetically = (a: any, b: any) => {
+    const nameA = (a.document_name || a.name || '').trim()
+    const nameB = (b.document_name || b.name || '').trim()
+    return nameA.localeCompare(nameB, undefined, { numeric: true, sensitivity: 'base' })
+  }
 
-  const coreTypes = COMMON_DOCUMENT_TYPES.map(t => t.type)
-  const extraImportantDocs = importantDocs.filter(d => !coreTypes.includes(d.document_type))
+  // 1. Sort all uploaded Important Documents strictly in alphabetical A → Z order
+  const sortedImportantDocs = docs
+    .filter(d => d.is_common_document)
+    .sort(sortAlphabetically)
+
+  // 2. Sort all uploaded Other Documents strictly in alphabetical A → Z order
+  const sortedOtherDocs = docs
+    .filter(d => !d.is_common_document)
+    .sort(sortAlphabetically)
+
+  // 3. Core common checklist items not yet uploaded, also sorted in A → Z order
+  const pendingCommonDocs = COMMON_DOCUMENT_TYPES
+    .filter(t => !sortedImportantDocs.some(d => d.document_type === t.type))
+    .sort(sortAlphabetically)
 
   const theme = MEMBER_THEMES[member.slug] || {
     headerBg: 'bg-gradient-to-br from-slate-50 via-indigo-50/30 to-white',
@@ -148,59 +164,51 @@ export default async function FamilyMemberPage({ params }: { params: Promise<{ s
             Important Documents
           </h2>
           <span className="text-[11px] text-slate-400 font-medium">
-            {importantDocs.length} uploaded
+            {sortedImportantDocs.length} uploaded
           </span>
         </div>
 
         <div className="bg-white rounded-2xl shadow-xs border border-slate-200/80 overflow-hidden divide-y divide-slate-100">
-          {/* Core tracked documents (checklist) */}
-          {COMMON_DOCUMENT_TYPES.map(docType => {
-            const doc = importantDocs.find(d => d.document_type === docType.type)
-            
-            if (doc) {
-              return <DocumentItem key={doc.id} document={doc} />
-            }
+          {/* 1. All uploaded Important Documents in alphabetical A → Z order */}
+          {sortedImportantDocs.map(doc => (
+            <DocumentItem key={doc.id} document={doc} />
+          ))}
 
-            return (
-              <div key={docType.type} className="p-3 sm:p-3.5 flex items-center justify-between gap-3 bg-white hover:bg-slate-50/40 transition-colors">
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-12 h-12 rounded-xl bg-slate-100/90 border border-slate-200/60 border-dashed flex items-center justify-center text-slate-400 flex-shrink-0">
-                    <svg className="w-5 h-5 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="1.5">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                    </svg>
-                  </div>
-                  <div>
-                    <span className="font-semibold text-xs sm:text-sm text-slate-700 block">{docType.name}</span>
-                    <span className="text-[11px] text-amber-700/80 bg-amber-50 px-1.5 py-0.5 rounded-md font-medium inline-block mt-0.5">
-                      Not uploaded yet
-                    </span>
-                  </div>
+          {/* 2. Pending checklist documents not yet uploaded (also sorted A → Z) */}
+          {pendingCommonDocs.map(docType => (
+            <div key={docType.type} className="p-2.5 sm:p-3.5 flex items-center justify-between gap-2.5 sm:gap-3 bg-white hover:bg-slate-50/40 transition-colors">
+              <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+                <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-slate-100/90 border border-slate-200/60 border-dashed flex items-center justify-center text-slate-400 flex-shrink-0">
+                  <svg className="w-4 h-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="1.5">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                </div>
+                <div>
+                  <span className="font-semibold text-xs sm:text-sm text-slate-700 block">{docType.name}</span>
+                  <span className="text-[10px] sm:text-[11px] text-amber-700/80 bg-amber-50 px-1.5 py-0.5 rounded-md font-medium inline-block mt-0.5">
+                    Not uploaded yet
+                  </span>
                 </div>
               </div>
-            )
-          })}
-
-          {/* Any other documents saved under Important */}
-          {extraImportantDocs.map(doc => (
-            <DocumentItem key={doc.id} document={doc} />
+            </div>
           ))}
         </div>
       </section>
 
-      {/* Other Documents Section */}
+      {/* Other Documents Section (Alphabetical A → Z) */}
       <section className="space-y-2.5 pt-2">
         <div className="flex items-center justify-between px-1">
           <h2 className="text-xs font-bold uppercase tracking-wider text-slate-600">
             Other Documents
           </h2>
           <span className="text-[11px] text-slate-400 font-medium">
-            {otherDocs.length} uploaded
+            {sortedOtherDocs.length} uploaded
           </span>
         </div>
         
-        {otherDocs.length > 0 ? (
+        {sortedOtherDocs.length > 0 ? (
           <div className="bg-white rounded-2xl shadow-xs border border-slate-200/80 overflow-hidden divide-y divide-slate-100">
-            {otherDocs.map(doc => (
+            {sortedOtherDocs.map(doc => (
               <DocumentItem key={doc.id} document={doc} />
             ))}
           </div>

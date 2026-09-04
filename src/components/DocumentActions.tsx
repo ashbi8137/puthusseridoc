@@ -89,20 +89,20 @@ export default function DocumentActions({ document: doc }: DocumentActionsProps)
   }
 
   return (
-    <div className="flex items-center gap-1.5 flex-shrink-0">
+    <div className="flex items-center gap-1 sm:gap-1.5 flex-shrink-0">
       <Link 
         href={`/view/${doc.id}`}
         prefetch={true}
-        className="px-2.5 py-1.5 text-xs font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200/70 rounded-lg transition-all active:scale-95 cursor-pointer"
+        className="px-2 py-1 sm:px-2.5 sm:py-1.5 text-[11px] sm:text-xs font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200/70 rounded-lg transition-all active:scale-95 cursor-pointer flex items-center justify-center min-h-[30px] sm:min-h-[32px]"
       >
         View
       </Link>
       <button 
         onClick={handleDownload}
         disabled={isDownloading}
-        className="px-2.5 py-1.5 text-xs font-semibold text-white bg-slate-900 hover:bg-slate-800 rounded-lg transition-all disabled:opacity-50 shadow-2xs active:scale-95 cursor-pointer flex items-center gap-1"
+        className="px-2 py-1 sm:px-2.5 sm:py-1.5 text-[11px] sm:text-xs font-semibold text-white bg-slate-900 hover:bg-slate-800 rounded-lg transition-all disabled:opacity-50 shadow-2xs active:scale-95 cursor-pointer flex items-center gap-1 min-h-[30px] sm:min-h-[32px]"
       >
-        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.2">
+        <svg className="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.2">
           <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
         </svg>
         <span>{isDownloading ? 'Saving...' : 'Download'}</span>
@@ -110,7 +110,7 @@ export default function DocumentActions({ document: doc }: DocumentActionsProps)
       <button 
         onClick={handleDelete}
         disabled={isDeleting}
-        className="p-1.5 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-rose-50 transition-colors disabled:opacity-50 cursor-pointer"
+        className="p-1 sm:p-1.5 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-rose-50 transition-colors disabled:opacity-50 cursor-pointer flex items-center justify-center min-w-[28px] min-h-[30px] sm:min-h-[32px]"
         title="Delete document"
       >
         <span className="sr-only">Delete</span>
