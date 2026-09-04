@@ -3,8 +3,10 @@ import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import DownloadButton from '@/components/DownloadButton'
 import BackButton from '@/components/BackButton'
+import DocumentViewer from '@/components/DocumentViewer'
 
-export const revalidate = 30
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
 
 export default async function ViewDocumentPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -72,24 +74,15 @@ export default async function ViewDocumentPage({ params }: { params: Promise<{ i
         </div>
       </header>
 
-      <div className="bg-white rounded-2xl shadow-sm border border-stone-200 overflow-hidden">
-        {isPdf ? (
-          <iframe 
-            src={`${signedUrl}#view=FitH`} 
-            className="w-full h-[70vh] min-h-[500px]" 
-            title={doc.document_name}
-          />
-        ) : (
-          <div className="flex justify-center bg-stone-50 p-4 sm:p-8">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img 
-              src={signedUrl} 
-              alt={doc.document_name}
-              className="max-w-full rounded-xl shadow-sm border border-stone-200"
-            />
-          </div>
-        )}
-      </div>
+      {/* Document Viewer: 100% Fit Width by Default + Interactive Zoom Controls */}
+      <DocumentViewer
+        url={signedUrl}
+        downloadUrl={downloadUrl}
+        title={doc.document_name}
+        fileName={doc.file_name}
+        fileType={doc.file_type}
+        isPdf={isPdf}
+      />
     </div>
   )
 }
